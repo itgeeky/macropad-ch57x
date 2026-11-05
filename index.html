@@ -3,7 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Configurador Macropad</title>
+<title>Configurador Macropad CH57x – software MINI_KEYBOARD en el navegador</title>
+<meta name="description" content="Configura tu macropad chino CH57x de 3 teclas y perilla (USB 514c:8851) desde Chrome o Edge, sin instalar el software MINI_KEYBOARD. Reasigna atajos, multimedia y mouse. Gratis y de código abierto.">
+<link rel="canonical" href="https://itgeeky.github.io/macropad-ch57x/">
+<link rel="alternate" hreflang="es" href="https://itgeeky.github.io/macropad-ch57x/">
+<link rel="alternate" hreflang="en" href="https://itgeeky.github.io/macropad-ch57x/#english">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://itgeeky.github.io/macropad-ch57x/">
+<meta property="og:title" content="Configurador web para macropad CH57x (MINI_KEYBOARD)">
+<meta property="og:description" content="Reasigna las teclas y la perilla de tu macropad chino desde el navegador, sin instalar nada.">
+<meta property="og:locale" content="es_MX">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Configurador Macropad CH57x",
+  "alternateName": ["MINI_KEYBOARD web configurator", "CH57x macropad configurator"],
+  "description": "Configurador web (WebHID) para macropads CH57x de 3 teclas y 1 perilla, USB 514c:8851. Alternativa al software MINI_KEYBOARD.exe.",
+  "url": "https://itgeeky.github.io/macropad-ch57x/",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Windows, macOS, Linux, ChromeOS (Chrome o Edge)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "inLanguage": ["es", "en"],
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/itgeeky/macropad-ch57x"
+}
+</script>
 <style>
 :root {
   --bg: #f4f4f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #dcdcd6;
@@ -62,14 +88,17 @@ select, input[type=number] { border: 1px solid var(--line); background: var(--bg
 .capture.on { background: var(--dirty); color: #000; border-color: var(--dirty); }
 .hint { font-size: 13px; color: var(--muted); }
 .warn { color: var(--warn); }
+.faq h3 { font-size: 15px; margin: 16px 0 4px; }
+.faq p { margin: 0; color: var(--muted); }
+.faq a { color: var(--accent); }
 #log { font: 12px/1.5 var(--mono); max-height: 180px; overflow: auto; white-space: pre-wrap; color: var(--muted); margin: 0; }
 .empty { color: var(--muted); padding: 24px 0; text-align: center; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Configurador de macropad</h1>
-  <p class="sub">Macropad CH57x de 3 teclas y 1 perilla (USB <code>514c:8851</code>). Requiere Chrome o Edge.</p>
+  <h1>Configurador de macropad CH57x (MINI_KEYBOARD)</h1>
+  <p class="sub">Para macropads chinos de 3 teclas y 1 perilla (USB <code>514c:8851</code>). Funciona en Chrome o Edge, sin instalar software.</p>
 
   <div class="panel row">
     <button id="btnConnect" class="primary">Conectar</button>
@@ -112,6 +141,24 @@ select, input[type=number] { border: 1px solid var(--line); background: var(--bg
   <section class="panel">
     <h2>Registro</h2>
     <pre id="log"></pre>
+  </section>
+
+  <section class="panel faq">
+    <h2>Preguntas frecuentes</h2>
+    <h3>Perdí el software de mi macropad, ¿esto lo reemplaza?</h3>
+    <p>Sí, si tu macropad es de los que usan el programa <strong>MINI_KEYBOARD.exe</strong> (chip CH57x). Esta página hace lo mismo desde el navegador: lee la configuración guardada y te deja reasignar teclas, atajos, controles multimedia y acciones de mouse. Los cambios se guardan en el macropad y funcionan en cualquier computadora.</p>
+    <h3>¿Cómo sé si mi macropad es compatible?</h3>
+    <p>En Windows abre el <em>Administrador de dispositivos</em>, busca tu macropad en "Teclados" o "Dispositivos de interfaz humana", entra a <em>Propiedades → Detalles → Id. de hardware</em> y busca <code>VID_514C&amp;PID_8851</code>. Es el modelo de 3 teclas con perilla que venden en AliExpress, Amazon y Mercado Libre, a veces con la marca sikaicase.</p>
+    <h3>¿Es seguro?</h3>
+    <p>La página no tiene servidor ni recolecta datos, y el navegador solo le da acceso al dispositivo que tú elijas. No modifica el firmware, solo la asignación de teclas. El <a href="https://github.com/itgeeky/macropad-ch57x">código es abierto</a>.</p>
+    <h3>¿Por qué no funciona en Firefox o Safari?</h3>
+    <p>Porque esos navegadores no implementan WebHID, la tecnología que permite hablar con dispositivos USB. Usa Chrome, Edge, Brave u Opera.</p>
+
+    <h2 id="english" lang="en" style="margin-top:24px">In English</h2>
+    <div lang="en">
+      <h3>Web configurator for CH57x macropads (MINI_KEYBOARD software alternative)</h3>
+      <p>Lost the <strong>MINI_KEYBOARD</strong> software for your cheap Chinese macro keypad? This page remaps the 3-key + 1-knob CH57x macropad (USB <code>514c:8851</code>) directly from Chrome or Edge using WebHID. No install needed. It reads the current layout, lets you set shortcuts, key sequences, media keys and mouse actions, and saves them to the device's memory. The interface is in Spanish: <em>Conectar</em> = connect, <em>Leer</em> = read, <em>Guardar cambios</em> = save changes, <em>Respaldar</em> = back up.</p>
+    </div>
   </section>
 </main>
 
