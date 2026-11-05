@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configurador Macropad</title>
+<style>
+:root {
+  --bg: #f4f4f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #dcdcd6;
+  --accent: #2f6fdb; --accent-ink: #ffffff; --cap: #ecece7; --cap-edge: #c9c9c2;
+  --ok: #1f8a4c; --warn: #b26b00; --err: #c0392b; --dirty: #e0a100;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #20201e; --ink: #ecece7; --muted: #9a9a93; --line: #34342f;
+    --accent: #5b8ff0; --accent-ink: #0d0d0c; --cap: #2c2c29; --cap-edge: #45453f;
+    --ok: #4cc27f; --warn: #e2a33a; --err: #ef6b5b; --dirty: #f0b82e;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.sub { color: var(--muted); margin: 0 0 20px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, select, input { font: inherit; color: inherit; }
+button { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 7px 14px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+select, input[type=number] { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 5px 8px; }
+#status { margin-left: auto; font-size: 14px; color: var(--muted); }
+#status.ok { color: var(--ok); } #status.err { color: var(--err); }
+.grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+.tabs button { padding: 4px 12px; font-size: 13px; }
+.tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.pad { display: flex; gap: 14px; align-items: center; justify-content: center; padding: 18px 8px; }
+.cap { width: 72px; height: 72px; border-radius: 10px; background: var(--cap); border: 1px solid var(--cap-edge);
+  box-shadow: 0 3px 0 var(--cap-edge); display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; padding: 4px; text-align: center; position: relative; }
+.cap small { color: var(--muted); font-size: 11px; }
+.cap .lbl { font-size: 12px; font-weight: 600; line-height: 1.2; word-break: break-word; }
+.cap.sel, .kz.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dirty::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--dirty); }
+.knob { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.knob .disc { width: 64px; height: 64px; border-radius: 50%; background: var(--cap); border: 1px solid var(--cap-edge); box-shadow: 0 3px 0 var(--cap-edge); }
+.kz { border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 11px; cursor: pointer; width: 112px; text-align: center; position: relative; background: var(--bg); }
+.kz b { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.field { margin-bottom: 12px; }
+.field > label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.step { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px; border: 1px solid var(--line); border-radius: 7px; margin-bottom: 6px; }
+.step .n { font-family: var(--mono); color: var(--muted); width: 18px; }
+.mods label { font-size: 13px; margin-right: 6px; white-space: nowrap; }
+.capture.on { background: var(--dirty); color: #000; border-color: var(--dirty); }
+.hint { font-size: 13px; color: var(--muted); }
+.warn { color: var(--warn); }
+#log { font: 12px/1.5 var(--mono); max-height: 180px; overflow: auto; white-space: pre-wrap; color: var(--muted); margin: 0; }
+.empty { color: var(--muted); padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Configurador de macropad</h1>
+  <p class="sub">Macropad CH57x de 3 teclas y 1 perilla (USB <code>514c:8851</code>). Requiere Chrome o Edge.</p>
+
+  <div class="panel row">
+    <button id="btnConnect" class="primary">Conectar</button>
+    <button id="btnRead" disabled>Leer del macropad</button>
+    <button id="btnWrite" disabled>Guardar cambios en el macropad</button>
+    <button id="btnExport" disabled>Respaldar (JSON)</button>
+    <label class="row"><button id="btnImport" type="button">Cargar respaldo</button><input id="fileImport" type="file" accept=".json" hidden></label>
+    <span id="status">Sin conectar</span>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Controles</h2>
+      <div class="tabs" id="layerTabs"></div>
+      <div class="pad" id="pad"></div>
+      <p class="hint" id="layerHint">La capa 1 es la que usa el macropad normalmente.</p>
+    </section>
+
+    <section class="panel" id="editor">
+      <div class="empty">Conecta el macropad y lee su configuración, o elige un control para editarlo.</div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Iluminación <span class="hint">(experimental)</span></h2>
+    <div class="row">
+      <select id="ledMode">
+        <option value="off">Apagada</option>
+        <option value="1">Fija</option>
+        <option value="2">Destello al presionar</option>
+        <option value="3">Destello al presionar (variante)</option>
+        <option value="4">Solo la tecla presionada</option>
+      </select>
+      <select id="ledColor"></select>
+      <button id="btnLed" disabled>Aplicar luz</button>
+      <span class="hint">Se aplica a la capa seleccionada. Si tu macropad no tiene LEDs, no hace nada.</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Registro</h2>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script>
+'use strict';
+// ---------- Protocol constants (verified against this unit) ----------
+const VID = 0x514c, PID = 0x8851, REPORT_ID = 0x03, REPORT_LEN = 64;
+const SLOTS = [
+  { id: 1, kind: 'key', name: 'Tecla 1' },
+  { id: 2, kind: 'key', name: 'Tecla 2' },
+  { id: 3, kind: 'key', name: 'Tecla 3' },
+  { id: 16, kind: 'knob', name: 'Perilla: girar ⟲', short: 'Girar ⟲' },
+  { id: 17, kind: 'knob', name: 'Perilla: presionar', short: 'Presionar' },
+  { id: 18, kind: 'knob', name: 'Perilla: girar ⟳', short: 'Girar ⟳' },
+];
+const LAYERS = 3;
+const MAX_STEPS = 18;
+
+const MODS = [[0x01, 'Ctrl'], [0x02, 'Shift'], [0x04, 'Alt'], [0x08, 'Win']];
+const RIGHT_MODS = [[0x10, 'Ctrl Der'], [0x20, 'Shift Der'], [0x40, 'Alt Der'], [0x80, 'Win Der']];
+
+// [event.code, label, HID usage]
+const KEYS = [];
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((c, i) => KEYS.push(['Key' + c, c, 0x04 + i]));
+'1234567890'.split('').forEach((c, i) => KEYS.push(['Digit' + c, c, 0x1e + i]));
+[
+  ['Enter', 'Enter', 0x28], ['Escape', 'Esc', 0x29], ['Backspace', 'Retroceso', 0x2a], ['Tab', 'Tab', 0x2b],
+  ['Space', 'Espacio', 0x2c], ['Minus', '-', 0x2d], ['Equal', '=', 0x2e], ['BracketLeft', '[', 0x2f],
+  ['BracketRight', ']', 0x30], ['Backslash', '\\', 0x31], ['Semicolon', ';', 0x33], ['Quote', "'", 0x34],
+  ['Backquote', '`', 0x35], ['Comma', ',', 0x36], ['Period', '.', 0x37], ['Slash', '/', 0x38],
+  ['CapsLock', 'Bloq Mayús', 0x39],
+].forEach(k => KEYS.push(k));
+for (let i = 1; i <= 12; i++) KEYS.push(['F' + i, 'F' + i, 0x39 + i]);
+[
+  ['PrintScreen', 'Impr Pant', 0x46], ['ScrollLock', 'Bloq Despl', 0x47], ['Pause', 'Pausa', 0x48],
+  ['Insert', 'Insert', 0x49], ['Home', 'Inicio', 0x4a], ['PageUp', 'Re Pág', 0x4b], ['Delete', 'Supr', 0x4c],
+  ['End', 'Fin', 0x4d], ['PageDown', 'Av Pág', 0x4e], ['ArrowRight', '→', 0x4f], ['ArrowLeft', '←', 0x50],
+  ['ArrowDown', '↓', 0x51], ['ArrowUp', '↑', 0x52], ['NumLock', 'Bloq Num', 0x53],
+  ['NumpadDivide', 'Num /', 0x54], ['NumpadMultiply', 'Num *', 0x55], ['NumpadSubtract', 'Num -', 0x56],
+  ['NumpadAdd', 'Num +', 0x57], ['NumpadEnter', 'Num Enter', 0x58],
+].forEach(k => KEYS.push(k));
+'123456789'.split('').forEach((c, i) => KEYS.push(['Numpad' + c, 'Num ' + c, 0x59 + i]));
+[['Numpad0', 'Num 0', 0x62], ['NumpadDecimal', 'Num .', 0x63], ['IntlBackslash', '< >', 0x64], ['ContextMenu', 'Menú', 0x65]]
+  .forEach(k => KEYS.push(k));
+for (let i = 13; i <= 24; i++) KEYS.push(['F' + i, 'F' + i, 0x68 + (i - 13)]);
+const KEY_BY_CODE = new Map(KEYS.map(k => [k[0], k]));
+const KEY_BY_USAGE = new Map(KEYS.map(k => [k[2], k]));
+
+const MEDIA = [
+  [0xe9, 'Subir volumen'], [0xea, 'Bajar volumen'], [0xe2, 'Silenciar'], [0xcd, 'Reproducir / Pausa'],
+  [0xb5, 'Siguiente pista'], [0xb6, 'Pista anterior'], [0xb7, 'Detener'], [0x6f, 'Subir brillo'],
+  [0x70, 'Bajar brillo'], [0x192, 'Calculadora'], [0x19e, 'Bloquear pantalla'], [0x223, 'Navegador: inicio'],
+  [0x224, 'Navegador: atrás'], [0x225, 'Navegador: adelante'], [0x182, 'Favoritos'],
+];
+const MEDIA_BY_CODE = new Map(MEDIA);
+
+const MOUSE = [
+  ['click:1', 'Clic izquierdo'], ['click:2', 'Clic derecho'], ['click:4', 'Clic central'],
+  ['wheel:1', 'Rueda arriba'], ['wheel:-1', 'Rueda abajo'],
+];
+
+const LED_COLORS = ['Blanco', 'Rojo', 'Naranja', 'Amarillo', 'Verde', 'Cian', 'Azul', 'Morado'];
+
+// ---------- State ----------
+let device = null;
+let layer = 1;
+let selected = null;
+let capturing = null;
+// config[layer][slotId] = action; action = {type:'keys', steps:[{mods, key}]} | {type:'media', code} | {type:'mouse', op, value, mods}
+const config = {};
+const original = {};
+for (let l = 1; l <= LAYERS; l++) { config[l] = {}; original[l] = {}; }
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hex = arr => Array.from(arr, b => b.toString(16).padStart(2, '0')).join(' ');
+
+function log(msg) {
+  const el = $('log');
+  el.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+function setStatus(text, cls = '') { const s = $('status'); s.textContent = text; s.className = cls; }
+
+// ---------- Action <-> text ----------
+function modsName(m) {
+  return [...MODS, ...RIGHT_MODS].filter(([b]) => m & b).map(([, n]) => n).join('+');
+}
+function describe(a) {
+  if (!a) return '—';
+  if (a.type === 'keys') {
+    return a.steps.map(s => {
+      const k = s.key ? (KEY_BY_USAGE.get(s.key)?.[1] ?? `0x${s.key.toString(16)}`) : '';
+      const m = modsName(s.mods);
+      return [m, k].filter(Boolean).join('+') || '—';
+    }).join(', ');
+  }
+  if (a.type === 'media') return MEDIA_BY_CODE.get(a.code) ?? `Multimedia 0x${a.code.toString(16)}`;
+  if (a.type === 'mouse') {
+    const label = MOUSE.find(([v]) => v === `${a.op}:${a.value}`)?.[1] ?? `Mouse ${a.op}`;
+    return [modsName(a.mods), label].filter(Boolean).join('+');
+  }
+  if (a.type === 'raw') return `Desconocido (tipo ${a.kind})`;
+  return '—';
+}
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+// ---------- Encoding ----------
+// Packets are built as on-the-wire bytes (index 0 = report ID) and sent without it.
+function packet(bytes) {
+  const p = new Uint8Array(REPORT_LEN + 1);
+  p.set(bytes);
+  return p;
+}
+function encodeBind(slotId, lyr, a) {
+  const p = packet([REPORT_ID, 0xfe, slotId, lyr]);
+  if (a.type === 'keys') {
+    p[4] = 1;
+    const steps = a.steps;
+    if (steps.length > MAX_STEPS) throw new Error('Máximo 18 pasos por tecla');
+    p[10] = (steps.length === 1 && !steps[0].key) ? 0 : steps.length;
+    steps.forEach((s, i) => { p[11 + 2 * i] = s.mods; p[12 + 2 * i] = s.key; });
+  } else if (a.type === 'media') {
+    p[4] = 2; p[10] = 1; p[11] = a.code & 0xff; p[12] = a.code >> 8;
+  } else if (a.type === 'mouse') {
+    p[4] = 3; p[11] = a.mods & 0x07;
+    if (a.op === 'click') { p[10] = 0x01; p[12] = a.value; }
+    else { p[10] = 0x03; p[15] = a.value & 0xff; }
+  } else {
+    throw new Error('Acción no soportada');
+  }
+  return p;
+}
+function decodeRecord(d) {
+  // d = wire bytes including report ID at [0]
+  const kind = d[4];
+  if (kind === 1) {
+    const n = d[10] || 1;
+    const steps = [];
+    for (let i = 0; i < n && 12 + 2 * i < d.length; i++) steps.push({ mods: d[11 + 2 * i], key: d[12 + 2 * i] });
+    return { type: 'keys', steps };
+  }
+  if (kind === 2) return { type: 'media', code: d[11] | (d[12] << 8) };
+  if (kind === 3) {
+    const mods = d[11];
+    if (d[10] === 0x01) return { type: 'mouse', op: 'click', value: d[12], mods };
+    if (d[10] === 0x03) return { type: 'mouse', op: 'wheel', value: (d[15] << 24) >> 24, mods };
+  }
+  return { type: 'raw', kind };
+}
+
+// ---------- Device I/O ----------
+const inbox = [];
+async function send(bytes) {
+  await device.sendReport(REPORT_ID, bytes.slice(1));
+  log('→ ' + hex(bytes.slice(0, 16)));
+}
+function onInput(e) {
+  if (e.reportId !== REPORT_ID) return;
+  const d = new Uint8Array(REPORT_LEN + 1);
+  d[0] = e.reportId;
+  d.set(new Uint8Array(e.data.buffer, e.data.byteOffset, Math.min(e.data.byteLength, REPORT_LEN)), 1);
+  inbox.push(d);
+}
+async function collect(quietMs = 300, maxMs = 3000) {
+  const start = Date.now();
+  let lastLen = -1, lastChange = Date.now();
+  while (Date.now() - start < maxMs) {
+    if (inbox.length !== lastLen) { lastLen = inbox.length; lastChange = Date.now(); }
+    else if (Date.now() - lastChange >= quietMs) break;
+    await sleep(25);
+  }
+  return inbox.splice(0);
+}
+
+async function connect() {
+  if (!('hid' in navigator)) { setStatus('Este navegador no soporta WebHID. Usa Chrome o Edge.', 'err'); return; }
+  try {
+    const devs = await navigator.hid.requestDevice({ filters: [{ vendorId: VID, productId: PID, usagePage: 0xff00 }] });
+    const dev = devs.find(d => d.collections.some(c => c.usagePage === 0xff00)) ?? devs[0];
+    if (!dev) return;
+    if (!dev.opened) await dev.open();
+    device = dev;
+    device.addEventListener('inputreport', onInput);
+    inbox.length = 0;
+    await send(packet([REPORT_ID, 0xfb, 0xfb, 0xfb]));
+    const id = (await collect(300, 1500)).find(d => d[1] === 0xfb);
+    if (id) log(`Identificado: ${id[2]} teclas, variante ${id[3]}, firmware ${id[4]}`);
+    setStatus('Conectado', 'ok');
+    ['btnRead', 'btnWrite', 'btnExport', 'btnLed'].forEach(b => $(b).disabled = false);
+    await readConfig();
+  } catch (err) {
+    setStatus('Error al conectar: ' + err.message, 'err');
+    log('ERROR ' + err.message);
+  }
+}
+
+async function readConfig() {
+  setStatus('Leyendo…');
+  inbox.length = 0;
+  let total = 0;
+  for (let n = 1; n <= 24; n++) {
+    await send(packet([REPORT_ID, 0xfa, 0x0f, 0x03, n]));
+    const recs = (await collect()).filter(d => d[1] === 0xfa || d[1] === 0xfe);
+    if (!recs.length) break;
+    for (const d of recs) {
+      const slot = d[2], lyr = d[3];
+      if (lyr < 1 || lyr > LAYERS || !SLOTS.some(s => s.id === slot)) continue;
+      if (d[4] === 5) continue; // delay record, attached to the previous one
+      const a = decodeRecord(d);
+      config[lyr][slot] = a;
+      original[lyr][slot] = structuredClone(a);
+      total++;
+    }
+  }
+  log(`Leídos ${total} registros`);
+  setStatus(total ? 'Configuración leída' : 'No se recibió configuración', total ? 'ok' : 'err');
+  render();
+}
+
+async function writeChanges() {
+  const changes = [];
+  for (let l = 1; l <= LAYERS; l++)
+    for (const s of SLOTS)
+      if (config[l][s.id] && !same(config[l][s.id], original[l][s.id])) changes.push([l, s]);
+  if (!changes.length) { setStatus('No hay cambios que guardar'); return; }
+  try {
+    setStatus(`Guardando ${changes.length} cambio(s)…`);
+    for (const [l, s] of changes) {
+      const p = encodeBind(s.id, l, config[l][s.id]);
+      log(`Capa ${l}, ${s.name}: ${describe(config[l][s.id])}`);
+      await send(p); await sleep(20);
+      await send(packet([REPORT_ID, 0xaa, 0xaa])); await sleep(20);
+      await send(packet([REPORT_ID, 0xfd, 0xfe, 0xff])); await sleep(200);
+      await send(packet([REPORT_ID, 0xaa, 0xaa])); await sleep(20);
+    }
+    await collect(200, 1000);
+    log('Verificando…');
+    await readConfig();
+    const failed = changes.filter(([l, s]) => !same(config[l][s.id], original[l][s.id]));
+    setStatus(failed.length ? 'Algunos cambios no se confirmaron, revisa el registro' : 'Guardado y verificado', failed.length ? 'err' : 'ok');
+  } catch (err) {
+    setStatus('Error al guardar: ' + err.message, 'err');
+    log('ERROR ' + err.message);
+  }
+}
+
+async function applyLed() {
+  const mode = $('ledMode').value, color = +$('ledColor').value;
+  let code = 0;
+  if (mode !== 'off') {
+    const m = +mode;
+    if (m === 1 && color === 0) code = 0x05;
+    else code = (color << 4) | m;
+  }
+  try {
+    await send(packet([REPORT_ID, 0xfe, 0xb0, layer, 0x08, 0, 0, 0, 0, 0, 0x01, 0x00, code]));
+    await sleep(20);
+    await send(packet([REPORT_ID, 0xfd, 0xfe, 0xff]));
+    await sleep(200);
+    setStatus('Luz aplicada', 'ok');
+  } catch (err) { setStatus('Error: ' + err.message, 'err'); }
+}
+
+// ---------- UI ----------
+function render() {
+  const tabs = $('layerTabs');
+  tabs.innerHTML = '';
+  for (let l = 1; l <= LAYERS; l++) {
+    const b = document.createElement('button');
+    b.textContent = 'Capa ' + l;
+    b.className = l === layer ? 'on' : '';
+    b.onclick = () => { layer = l; render(); };
+    tabs.appendChild(b);
+  }
+  $('layerHint').innerHTML = layer === 1
+    ? 'La capa 1 es la que usa el macropad normalmente.'
+    : '<span class="warn">No se sabe cómo activar las capas 2 y 3 en este modelo. Lo normal es configurar solo la capa 1.</span>';
+
+  const pad = $('pad');
+  pad.innerHTML = '';
+  for (const s of SLOTS.filter(s => s.kind === 'key')) {
+    const el = document.createElement('div');
+    el.className = 'cap' + (selected === s.id ? ' sel' : '') + (isDirty(s.id) ? ' dirty' : '');
+    el.innerHTML = `<small>${s.id}</small><span class="lbl"></span>`;
+    el.querySelector('.lbl').textContent = describe(config[layer][s.id]);
+    el.onclick = () => select(s.id);
+    pad.appendChild(el);
+  }
+  const knob = document.createElement('div');
+  knob.className = 'knob';
+  const zone = id => {
+    const s = SLOTS.find(x => x.id === id);
+    const z = document.createElement('div');
+    z.className = 'kz' + (selected === id ? ' sel' : '') + (isDirty(id) ? ' dirty' : '');
+    z.innerHTML = `${s.short}<b></b>`;
+    z.querySelector('b').textContent = describe(config[layer][id]);
+    z.onclick = () => select(id);
+    return z;
+  };
+  const disc = document.createElement('div'); disc.className = 'disc';
+  knob.append(zone(16), disc, zone(17), zone(18));
+  pad.appendChild(knob);
+
+  renderEditor();
+}
+function isDirty(id) { return config[layer][id] && !same(config[layer][id], original[layer][id]); }
+function select(id) { selected = id; stopCapture(); render(); }
+
+function renderEditor() {
+  const ed = $('editor');
+  if (selected == null) {
+    ed.innerHTML = '<div class="empty">Elige una tecla o una acción de la perilla para editarla.</div>';
+    return;
+  }
+  const slot = SLOTS.find(s => s.id === selected);
+  let a = config[layer][selected];
+  if (!a || a.type === 'raw') { a = { type: 'keys', steps: [{ mods: 0, key: 0x04 }] }; }
+  ed.innerHTML = '';
+  const h = document.createElement('h2');
+  h.textContent = `${slot.name} · Capa ${layer}`;
+  ed.appendChild(h);
+
+  const typeField = document.createElement('div');
+  typeField.className = 'field';
+  typeField.innerHTML = `<label>Tipo de acción</label>
+    <select id="actType">
+      <option value="keys">Combinación de teclas</option>
+      <option value="media">Multimedia / sistema</option>
+      <option value="mouse">Mouse</option>
+    </select>`;
+  ed.appendChild(typeField);
+  const sel = typeField.querySelector('select');
+  sel.value = a.type;
+  sel.onchange = () => {
+    const t = sel.value;
+    update(t === 'keys' ? { type: 'keys', steps: [{ mods: 0, key: 0x04 }] }
+      : t === 'media' ? { type: 'media', code: 0xe9 }
+      : { type: 'mouse', op: 'click', value: 1, mods: 0 });
+  };
+
+  const body = document.createElement('div');
+  ed.appendChild(body);
+  if (a.type === 'keys') renderKeys(body, a);
+  else if (a.type === 'media') renderMedia(body, a);
+  else renderMouse(body, a);
+
+  const actions = document.createElement('div');
+  actions.className = 'row';
+  actions.style.marginTop = '14px';
+  const revert = document.createElement('button');
+  revert.textContent = 'Deshacer cambios de este control';
+  revert.disabled = !isDirty(selected);
+  revert.onclick = () => { config[layer][selected] = structuredClone(original[layer][selected]); render(); };
+  actions.appendChild(revert);
+  ed.appendChild(actions);
+}
+function update(a) { config[layer][selected] = a; render(); }
+
+function keyOptions(selectedUsage) {
+  const opt = ['<option value="0">(ninguna, solo modificadores)</option>'];
+  for (const [, label, usage] of KEYS)
+    opt.push(`<option value="${usage}"${usage === selectedUsage ? ' selected' : ''}>${label}</option>`);
+  return opt.join('');
+}
+
+function renderKeys(body, a) {
+  const f = document.createElement('div');
+  f.className = 'field';
+  f.innerHTML = '<label>Teclas (se envían en orden)</label>';
+  body.appendChild(f);
+  a.steps.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'step';
+    const mods = document.createElement('span');
+    mods.className = 'mods';
+    // Firmware limitation on 1-row + 1-knob boards: modifiers only on the first step.
+    const modsAllowed = i === 0;
+    for (const [bit, name] of MODS) {
+      const l = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = !!(s.mods & bit); cb.disabled = !modsAllowed;
+      cb.onchange = () => { s.mods = cb.checked ? s.mods | bit : s.mods & ~bit; update(a); };
+      l.append(cb, ' ' + name);
+      mods.appendChild(l);
+    }
+    const ks = document.createElement('select');
+    ks.innerHTML = keyOptions(s.key);
+    ks.onchange = () => { s.key = +ks.value; update(a); };
+    const cap = document.createElement('button');
+    cap.textContent = capturing === i ? 'Presiona una combinación…' : 'Capturar';
+    cap.className = 'capture' + (capturing === i ? ' on' : '');
+    cap.onclick = () => { capturing === i ? stopCapture() : startCapture(a, i); render(); };
+    row.innerHTML = `<span class="n">${i + 1}</span>`;
+    row.append(mods, ks, cap);
+    if (a.steps.length > 1) {
+      const del = document.createElement('button');
+      del.textContent = '✕'; del.title = 'Quitar paso';
+      del.onclick = () => { a.steps.splice(i, 1); update(a); };
+      row.appendChild(del);
+    }
+    f.appendChild(row);
+  });
+  const add = document.createElement('button');
+  add.textContent = '+ Agregar tecla a la secuencia';
+  add.disabled = a.steps.length >= MAX_STEPS;
+  add.onclick = () => { a.steps.push({ mods: 0, key: 0x04 }); update(a); };
+  f.appendChild(add);
+  const hint = document.createElement('p');
+  hint.className = 'hint';
+  hint.textContent = 'Un solo paso = atajo (ej. Ctrl+C). Varios pasos = escribe una secuencia. En este modelo los modificadores solo funcionan en el primer paso. Algunos atajos con Win los intercepta Windows al capturar: elígelos con las casillas.';
+  f.appendChild(hint);
+}
+
+function renderMedia(body, a) {
+  const f = document.createElement('div');
+  f.className = 'field';
+  f.innerHTML = '<label>Acción</label>';
+  const s = document.createElement('select');
+  s.innerHTML = MEDIA.map(([c, n]) => `<option value="${c}"${c === a.code ? ' selected' : ''}>${n}</option>`).join('');
+  s.onchange = () => update({ type: 'media', code: +s.value });
+  f.appendChild(s);
+  body.appendChild(f);
+}
+
+function renderMouse(body, a) {
+  const f = document.createElement('div');
+  f.className = 'field';
+  f.innerHTML = '<label>Acción</label>';
+  const s = document.createElement('select');
+  const cur = `${a.op}:${a.value}`;
+  s.innerHTML = MOUSE.map(([v, n]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${n}</option>`).join('');
+  s.onchange = () => { const [op, v] = s.value.split(':'); update({ ...a, op, value: +v }); };
+  f.appendChild(s);
+  const mods = document.createElement('div');
+  mods.className = 'mods';
+  mods.style.marginTop = '8px';
+  for (const [bit, name] of MODS.slice(0, 3)) {
+    const l = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = !!(a.mods & bit);
+    cb.onchange = () => update({ ...a, mods: cb.checked ? a.mods | bit : a.mods & ~bit });
+    l.append(cb, ' ' + name);
+    mods.appendChild(l);
+  }
+  f.appendChild(mods);
+  body.appendChild(f);
+}
+
+// ---------- Key capture ----------
+let captureTarget = null;
+function startCapture(a, i) { capturing = i; captureTarget = a; }
+function stopCapture() { capturing = null; captureTarget = null; }
+window.addEventListener('keydown', e => {
+  if (capturing == null) return;
+  e.preventDefault();
+  if (['ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight'].includes(e.code)) return;
+  if (e.code === 'Escape' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) { stopCapture(); render(); return; }
+  const k = KEY_BY_CODE.get(e.code);
+  if (!k) { log('Tecla no soportada: ' + e.code); return; }
+  const step = captureTarget.steps[capturing];
+  step.key = k[2];
+  step.mods = capturing === 0 ? (e.ctrlKey ? 1 : 0) | (e.shiftKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0) : 0;
+  const a = captureTarget;
+  stopCapture();
+  update(a);
+}, true);
+
+// ---------- Backup ----------
+function exportJson() {
+  const blob = new Blob([JSON.stringify({ device: '514c:8851', config }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `macropad-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+async function importJson(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    for (let l = 1; l <= LAYERS; l++)
+      for (const s of SLOTS)
+        if (data.config?.[l]?.[s.id]) config[l][s.id] = data.config[l][s.id];
+    setStatus('Respaldo cargado. Presiona "Guardar cambios" para escribirlo en el macropad.');
+    render();
+  } catch (err) { setStatus('Respaldo inválido: ' + err.message, 'err'); }
+}
+
+// ---------- Wiring ----------
+$('ledColor').innerHTML = LED_COLORS.map((c, i) => `<option value="${i}">${c}</option>`).join('');
+$('btnConnect').onclick = connect;
+$('btnRead').onclick = readConfig;
+$('btnWrite').onclick = writeChanges;
+$('btnExport').onclick = exportJson;
+$('btnLed').onclick = applyLed;
+$('btnImport').onclick = () => $('fileImport').click();
+$('fileImport').onchange = e => e.target.files[0] && importJson(e.target.files[0]);
+if ('hid' in navigator) navigator.hid.addEventListener('disconnect', e => {
+  if (e.device === device) {
+    device = null; setStatus('Macropad desconectado', 'err');
+    ['btnRead', 'btnWrite', 'btnLed'].forEach(b => $(b).disabled = true);
+  }
+});
+render();
+</script>
+</body>
+</html>
